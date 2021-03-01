@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <string.h>
 #include <vector>
 
 #define MAX_NUM_VALUE ((1<<30))
