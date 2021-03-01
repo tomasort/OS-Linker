@@ -10,10 +10,9 @@
 
 class Symbol{
 public:
-    int defined;
-    int occurrences;
-    int used;
-    int definition;
+    int definitions;
+    int used_in_program;
+    int used_in_module;
     std::string name;
     int value; // relative to the module
 };
@@ -24,7 +23,6 @@ public:
     int module_number;
     int size;
     std::vector<Symbol*> symbols;
-    std::vector<Symbol*> use_symbols;
     Module(int b, int n){
         base = b;
         module_number = n;
@@ -34,6 +32,7 @@ public:
 FILE* fp = NULL;
 char line[LINE_BUFFER];
 std::map<std::string, Symbol> symbol_table;
+std::vector<Module> modules;
 int line_number = 0;
 int line_offset = 0;
 int line_length = 0;
@@ -52,7 +51,6 @@ void __printerror(int errcode){
     };
     std::cout << " Error: " << errstr[errcode] << std::endl; 
 }
-
 
 void __parseerror(int errcode){
     static std::string errstr[] = {
@@ -138,7 +136,6 @@ int readInt(){
     }
     for(int i = 0; i < token.length(); i++){
         if(!isdigit(token[i])){
-            // TODO add error here. Probably something like number expected or, not a number
             __parseerror(0);
             exit(0);
         }
@@ -162,7 +159,6 @@ std::string readSymbol(){
     }
     for(int i = 1; i < token.length(); i++){
         if(!isalnum(token[i])){
-            // TODO: find the error that needs to be here when a symbol is not alpha numeric
             __parseerror(1);
             exit(0);
             return NULL;
@@ -195,21 +191,20 @@ void createSymbol(std::string name, int value){
         Symbol sym;
         sym.name = name;
         sym.value = value;
-        sym.defined = 1;
-        sym.occurrences = 1;
+        sym.definitions = 1;
+        sym.used_in_module = 0;
+        sym.used_in_program = 0;
         symbol_table[name] = sym;
     }else{
-        std::cout << "The symbol already exists" << std::endl;
-        symbol_table[name].occurrences++;
+        // std::cout << "The symbol already exists" << std::endl;
+        symbol_table[name].definitions++;
     }
 
 }
 
-// TODO: create a function to check opcodes and operands
 
 void pass1(){
     // Pass1 determines the base address for each module and the absolute address for each defined symbol. 
-    std::vector<Module> modules;
     int module_offset = 0;
     while(!feof(fp)){
         Module current_module(module_offset, modules.size()); 
@@ -243,12 +238,6 @@ void pass1(){
             // If addressing_mode is A, check that operand is less than 512
             int operand = readInt();
             // various checks ... what checks? 
-            // Get opcode and see if it is a single digit
-            // int opcode = operand/1000;
-            // operand = operand % 1000;
-            // Chech that the operand is within range <= 512 if A
-            // Probably we need to ckeck if there are more intructions than specified
-            // Chech that the operand is within range <= 512 if A
         }
         // Check if the values of symbols in the module are larger than the size of the module
         for (int i = 0; i < current_module.symbols.size(); i ++){
@@ -268,8 +257,7 @@ void pass1(){
     std::map<std::string, Symbol>::iterator it;
     for(it = symbol_table.begin(); it != symbol_table.end();it++){
         std::cout << it->first << '=' << it->second.value;
-        if (it->second.occurrences > 1){
-            // TODO: print error message saying that the symbol is defined multiple times
+        if (it->second.definitions > 1){
             __printerror(3);
         }else{
             std::cout << "\n";
@@ -294,7 +282,7 @@ std::string printInstNum(int num){
 }
 
 void pass2(){
-    int current_module = 0;
+    int module_number = 0;
     int instruction_number = 0;
     int module_base = 0;
     std::cout << "Memory Map" << std::endl;
@@ -303,15 +291,20 @@ void pass2(){
         for (int i = 0; i < defcount; i++){
             std::string sym = readSymbol();
             int val = readInt();
-            // createSymbol(sym, val); // add the symbol to symbol_table
-            // Check if symbol_table[sym] is bigger than (modules[current_module].base + modules[current_module].size)
-            // if it is larger, change the value of the symbol to 0
         }
         std::vector<std::string> uselist;
         int usecount = readInt();
         for (int i = 0; i < usecount; i++){
             std::string sym = readSymbol();
             uselist.push_back(sym);
+            if (symbol_table.find(sym) == symbol_table.end()){
+                // The symbol in the uselist is not defined in the program
+                Symbol s;
+                s.definitions = 0;
+                s.used_in_module = 0;
+                s.used_in_program = 0;
+                symbol_table[sym] = s;
+            }
         }
         int instcount = readInt();
         for (int i = 0; i < instcount; i++){
@@ -328,7 +321,6 @@ void pass2(){
                             std::cout << printOperand(9, 999);
                             __printerror(4);
                         }else{
-                            // print the operand
                             std::cout << printOperand(operand/1000, operand%1000) << std::endl;
                         }
                         break;
@@ -345,12 +337,15 @@ void pass2(){
                             std::cout << printOperand(operand/1000, operand%1000);
                             __printerror(2);
                         }else{
-                            // Check that the variable is defined somewhere
-                            if (symbol_table[uselist[operand%1000]].defined){
+                            if ((symbol_table.find(uselist[operand%1000]) != symbol_table.end()) && (symbol_table[uselist[operand%1000]].definitions > 0)){
                                 std::cout << printOperand(operand/1000, symbol_table[uselist[operand%1000]].value) << std::endl;
                             }else{
                                 std::cout << printOperand(operand/1000, 0);
                                 std::cout << " Error: " << uselist[operand%1000] << " is not defined; zero used" << std::endl;
+                            }
+                            if (symbol_table.find(uselist[operand%1000]) != symbol_table.end()){
+                                symbol_table[uselist[operand%1000]].used_in_module++;
+                                symbol_table[uselist[operand%1000]].used_in_program++;
                             }
                         }
                         break;
@@ -367,18 +362,36 @@ void pass2(){
             instruction_number++;
         }
         module_base += instcount;
+        // TODO: look through the use list symbols and check that they were actually used_in_program in the module
+        for (int i = 0; i < usecount; i++){
+            if(symbol_table.find(uselist[i]) != symbol_table.end()){
+                Symbol* sym = &symbol_table[uselist[i]];
+                if (sym->used_in_module == 0){
+                    std::cout << "Warning: Module " << module_number + 1 << ": " << uselist[i]
+                    <<  " appeared in the uselist but was not actually used\n";
+                }
+            }else{
+                continue;
+            }
+        }
+        // reset the used_in_module counts for each symbol in the uselist
+        for (int i = 0; i < usecount; i++){
+            if(symbol_table.find(uselist[i]) != symbol_table.end()){
+                Symbol* sym = &symbol_table[uselist[i]];
+                sym->used_in_module = 0;
+            }
+        }
+        module_number++;
     }
-    // TODO: look for symbols that are never used. look at rule 4
-    // std::map<std::string, Symbol>::iterator it;
-    // for(it = symbol_table.begin(); it != symbol_table.end();it++){
-    //     std::cout << it->first << '=' << it->second.value;
-    //     if (it->second.used == 0){
-    //         std::cout << "Warning: Module " << ": " <<  "appeared in the uselist but was not actually used\n";
-    //         __printerror(3);
-    //     }else{
-    //         std::cout << "\n";
-    //     }
-    // }
+    std::cout << "\n";
+    for(int i = 0; i < module_number; i++){
+        for (int j = 0; j < modules[i].symbols.size(); j++){
+            if (modules[i].symbols[j]->used_in_program == 0){
+                std::cout << "Warning: Module "
+                << i + 1 << ": " << modules[i].symbols[j]->name << " was defined but never used\n";
+            } 
+        }
+    }
 }
 
 int main(int argc, char** argv){
@@ -397,6 +410,7 @@ int main(int argc, char** argv){
     getToken(); // Consume the last token (this is because of the method we use to read)
     std::cout << "\n";
     pass2();
+    std::cout << "\n";
     // Go through pass 2
     if(fclose(fp)){ 
         printf("Unable to close file\n"); 
