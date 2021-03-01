@@ -63,7 +63,7 @@ void __parseerror(int errcode){
         "TOO_MANY_INSTR",
     };
     std::cout << "Parse Error line " << line_number << " offset " 
-    << line_offset << " " << errstr[errcode] << std::endl; 
+    << line_offset << ": " << errstr[errcode] << std::endl; 
 }
 
 std::string readToken(){
