@@ -23,6 +23,7 @@
         "streambuf": "cpp",
         "system_error": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "ostream": "cpp"
     }
 }
