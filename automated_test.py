@@ -57,7 +57,7 @@ def createModule():
         num_of_inst = random.randint(0, MAX_NUM_INST)
     for i in range(num_of_inst):
         ins = random.choice(instructions)
-        f += ins + getDelim() + str(random.randint(-5, 15))
+        f += ins + getDelim() + str(random.randint(-1, 12))
         if ins == 'R':
             op = random.randint(0, num_in_uselist) if random.randint(0, 10) < 8 else random.randint(0, 10000)
             f += str(op) + getDelim()
