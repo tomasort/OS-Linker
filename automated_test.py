@@ -31,12 +31,12 @@ def createModule():
         num_of_symbol_definitions = random.randint(0, MAX_NUM_SYM)
     for i in range(num_of_symbol_definitions):
         symbol = ""
-        if random.randint(0, 10) > 3:
+        if random.randint(0, 10) > 2:
             symbol = random.choice(symbols)
             if random.randint(0, 10) > 8:
                 symbol = str(random.randint(0, 10)) + symbol
         operand = ""
-        if random.randint(0, 10) > 3:
+        if random.randint(0, 10) > 2:
             operand = str(random.randint(0, 10000000))
         f += symbol + getDelim() + operand + getDelim()
     # uselist
@@ -67,8 +67,6 @@ def createModule():
 
 
 myString = createModule()
-myString += createModule()
-myString += createModule()
 myString += createModule()
 f = open("demo.txt", "w")
 f.write(myString)
