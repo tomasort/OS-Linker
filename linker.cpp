@@ -13,6 +13,7 @@ public:
     int definitions;
     int used_in_program;
     int used_in_module;
+    int is_too_large;
     std::string name;
     int value; // relative to the module
 };
@@ -200,6 +201,7 @@ bool createSymbol(std::string name, int value){
         sym.definitions = 1;
         sym.used_in_module = 0;
         sym.used_in_program = 0;
+        sym.is_too_large = 0;
         symbol_table[name] = sym;
         return true;
     }else{
@@ -263,10 +265,12 @@ void pass1(){
         }
         // Check if the values of symbols in the module are larger than the size of the module
         for (int i = 0; i < current_module.symbols.size(); i ++){
-            if (current_module.symbols[i]->value - module_offset > instcount){
+            Symbol* sym = current_module.symbols[i];
+            if ((sym->value - module_offset) > instcount || sym->is_too_large){
+                sym->is_too_large = 1;
                 std::cout << "Warning: Module "
-                << modules.size() + 1 << ": " << current_module.symbols[i]->name << " too big " 
-                << current_module.symbols[i]->value - module_offset << " (max=" << instcount - 1
+                << modules.size() + 1 << ": " << sym->name << " too big " 
+                << sym->value - module_offset << " (max=" << instcount - 1
                 << ") assume zero relative" << std::endl;
                 symbol_table[current_module.symbols[i]->name].value = module_offset;
             } 
