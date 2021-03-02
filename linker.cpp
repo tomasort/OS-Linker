@@ -66,14 +66,13 @@ void __parseerror(int errcode){
     << line_offset << ": " << errstr[errcode] << std::endl; 
 }
 
-std::string readToken(){
+std::string getToken(){
     // This function reads a single token from a file
     static int current_line_num = 0; 
     static int current_line_offset = 0;
     char* token = NULL;  // Current token 
     // transfer the previous line number and offset number into the global variables
-    line_number = current_line_num;
-    line_offset = current_line_offset;
+    // line_offset = current_line_offset;
     // Get the first line of the file
     if (current_line_num == 0){
         // Consume every space, \t, and \n until we see a new token or we reach eof
@@ -97,36 +96,39 @@ std::string readToken(){
             }while(!token && !feof(fp));
         }
     }
-    if(feof(fp)){
-        last_line_number = current_line_num;
+    if(!token && feof(fp)){
+        line_offset = line_length;
+        line_number = current_line_num;
         // Return the empty string when we reach eof
         return "";
     }
-    current_line_offset = token - line + 1;
+    line_offset = token - line + 1;
+    line_number = current_line_num;
     std::string current_token(token);
+    // std::cout << "Token: " << line_number << ":" << line_offset << " : " << token << "\n";
     return current_token;
 }
 
-std::string getToken(){
-    // This function returns the current token and keeps track of the next token if there is one
-    // It returns an empty line when eof is reached. 
-    static std::string next_token;
-    std::string current_token;
-    // To know we have reached EOF before it is too late 
-    // we read one token ahead 
-    if(line_number == 0){
-        current_token = readToken();
-        next_token = readToken();
-    }else{
-        current_token = next_token;
-        next_token = readToken();
-    }
-    if (next_token.empty() && current_token.empty()){
-        // std::cout << "returning last token" << std::endl;
-        line_offset = line_length;
-    }
-    return current_token;
-}
+// std::string getToken(){
+//     // This function returns the current token and keeps track of the next token if there is one
+//     // It returns an empty line when eof is reached. 
+//     static std::string next_token;
+//     std::string current_token;
+//     // To know we have reached EOF before it is too late 
+//     // we read one token ahead 
+//     if(line_number == 0){
+//         current_token = readToken();
+//         next_token = readToken();
+//     }else{
+//         current_token = next_token;
+//         next_token = readToken();
+//     }
+//     if (next_token.empty() && current_token.empty()){
+//         // std::cout << "returning last token" << std::endl;
+//         line_offset = line_length;
+//     }
+//     return current_token;
+// }
 
 int readInt(){
     std::string token = getToken();
@@ -148,6 +150,7 @@ int readInt(){
 
 std::string readSymbol(){
     std::string token = getToken();
+    // std::cout << token << std::endl;
     if (token.length() == 0){
         __parseerror(1);
         exit(0);
@@ -185,7 +188,7 @@ char readIAER(){
     return addressing_mode;
 }
 
-void createSymbol(std::string name, int value){
+bool createSymbol(std::string name, int value){
     // Adds a symbol to the symbol table
     // raise an error if the symbol already exists
     // Check if the symbol has been added
@@ -198,12 +201,22 @@ void createSymbol(std::string name, int value){
         sym.used_in_module = 0;
         sym.used_in_program = 0;
         symbol_table[name] = sym;
+        return true;
     }else{
         // std::cout << "The symbol already exists" << std::endl;
         symbol_table[name].definitions++;
+        return false;
     }
 
 }
+
+// Symbol* getSymbol(std::string symbol_name){
+//     for (int i = 0; i < symbols.size(); i++){
+//         if(symbols[i].name = symbol_name){
+//             return &symbols[i];
+//         }
+//     }
+// }
 
 
 void pass1(){
@@ -222,8 +235,9 @@ void pass1(){
         for (int i = 0; i < defcount; i++){  // Parse the symbols and their values
             std::string sym = readSymbol();
             int val = module_offset + readInt();
-            createSymbol(sym, val); // add the symbol to symbol_table
-            current_module.symbols.push_back(&symbol_table[sym]);
+            if(createSymbol(sym, val)){ // add the symbol to symbol_table
+                current_module.symbols.push_back(&symbol_table[sym]);
+            }
         }
         int usecount = readInt();
         if (usecount > 16){
@@ -260,15 +274,28 @@ void pass1(){
         modules.push_back(current_module);
     }
     std::cout << "Symbol Table" << std::endl;
-    std::map<std::string, Symbol>::iterator it;
-    for(it = symbol_table.begin(); it != symbol_table.end();it++){
-        std::cout << it->first << '=' << it->second.value;
-        if (it->second.definitions > 1){
-            __printerror(3);
-        }else{
-            std::cout << "\n";
+    for (int i = 0; i < modules.size(); i++){
+        for (int j = 0; j < modules[i].symbols.size(); j++){
+            Symbol* sym = modules[i].symbols[j];
+            std::cout << sym->name << '=' << sym->value;
+            if (sym->definitions > 1){
+                __printerror(3);
+                sym-> definitions = 1;
+            }else{
+                std::cout << "\n";
+            }
         }
     }
+    // std::cout << "Symbol Table" << std::endl;
+    // std::map<std::string, Symbol>::iterator it;
+    // for(it = symbol_table.begin(); it != symbol_table.end();it++){
+    //     std::cout << it->first << '=' << it->second.value;
+    //     if (it->second.definitions > 1){
+    //         __printerror(3);
+    //     }else{
+    //         std::cout << "\n";
+    //     }
+    // }
 }
 
 std::string printOperand(int opcode, int operand){
@@ -398,6 +425,7 @@ void pass2(){
             if (modules[i].symbols[j]->used_in_program == 0){
                 std::cout << "Warning: Module "
                 << i + 1 << ": " << modules[i].symbols[j]->name << " was defined but never used\n";
+                modules[i].symbols[j]->used_in_program = 1;
             } 
         }
     }
@@ -416,7 +444,6 @@ int main(int argc, char** argv){
     // }
     // fp = fopen(argv[1], "r");
     rewind(fp);
-    getToken(); // Consume the last token (this is because of the method we use to read)
     std::cout << "\n";
     pass2();
     std::cout << "\n";
