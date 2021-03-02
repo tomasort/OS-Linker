@@ -186,6 +186,10 @@ char readIAER(){
         exit(0);
     }
     // TODO: Check that addressing_mode is either I, A, E, or R
+    if((addressing_mode != 'I') && (addressing_mode != 'I') && (addressing_mode != 'I') && (addressing_mode != 'I')){
+        __parseerror(2);
+        exit(0);
+    }
     return addressing_mode;
 }
 
@@ -266,8 +270,7 @@ void pass1(){
         // Check if the values of symbols in the module are larger than the size of the module
         for (int i = 0; i < current_module.symbols.size(); i ++){
             Symbol* sym = current_module.symbols[i];
-            if ((sym->value - module_offset) > instcount || sym->is_too_large){
-                sym->is_too_large = 1;
+            if ((sym->value - module_offset) >= instcount){
                 std::cout << "Warning: Module "
                 << modules.size() + 1 << ": " << sym->name << " too big " 
                 << sym->value - module_offset << " (max=" << instcount - 1
@@ -402,7 +405,6 @@ void pass2(){
             instruction_number++;
         }
         module_base += instcount;
-        // TODO: look through the use list symbols and check that they were actually used_in_program in the module
         for (int i = 0; i < usecount; i++){
             if(symbol_table.find(uselist[i]) != symbol_table.end()){
                 Symbol* sym = &symbol_table[uselist[i]];
