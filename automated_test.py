@@ -63,7 +63,10 @@ def createModule():
             f += str(op) + getDelim()
         else:
             f += str(random.randint(0, 10000)) + getDelim()
-    print(f)
+    return f
 
 
-createModule()
+myString = createModule()
+f = open("demo.txt", "w")
+f.write(myString)
+f.close()
