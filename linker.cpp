@@ -222,6 +222,7 @@ bool createSymbol(std::string name, int value){
 void pass1(){
     // Pass1 determines the base address for each module and the absolute address for each defined symbol. 
     int module_offset = 0;
+    std::vector<Symbol*> defined_symbols; // this is to keep the order in which the symbols where defined
     while(!feof(fp)){
         Module current_module(module_offset, modules.size()); 
         int defcount = readInt();
@@ -236,8 +237,9 @@ void pass1(){
             std::string sym = readSymbol();
             int val = module_offset + readInt();
             if(createSymbol(sym, val)){ // add the symbol to symbol_table
-                current_module.symbols.push_back(&symbol_table[sym]);
+                defined_symbols.push_back(&symbol_table[sym]);
             }
+            current_module.symbols.push_back(&symbol_table[sym]);
         }
         int usecount = readInt();
         if (usecount > 16){
@@ -274,16 +276,14 @@ void pass1(){
         modules.push_back(current_module);
     }
     std::cout << "Symbol Table" << std::endl;
-    for (int i = 0; i < modules.size(); i++){
-        for (int j = 0; j < modules[i].symbols.size(); j++){
-            Symbol* sym = modules[i].symbols[j];
-            std::cout << sym->name << '=' << sym->value;
-            if (sym->definitions > 1){
-                __printerror(3);
-                sym-> definitions = 1;
-            }else{
-                std::cout << "\n";
-            }
+    for (int i = 0; i < defined_symbols.size(); i++){
+        Symbol* sym = defined_symbols[i];
+        std::cout << sym->name << '=' << sym->value;
+        if (sym->definitions > 1){
+            __printerror(3);
+            sym-> definitions = 1;
+        }else{
+            std::cout << "\n";
         }
     }
     // std::cout << "Symbol Table" << std::endl;
