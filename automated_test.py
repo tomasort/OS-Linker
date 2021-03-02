@@ -73,7 +73,7 @@ for i in range(70):
     f.write(myString)
     f.close()
     os.system("./linker demo.txt > out_file_mine")
-    os.system("./flinker demo.txt > out_file_his")
+    os.system("/home/frankeh/Public/linker demo.txt > out_file_his")
     f1 = open("out_file_mine", "r")
     f2 = open("out_file_his", "r")
     assert (f1.read() == f2.read())
