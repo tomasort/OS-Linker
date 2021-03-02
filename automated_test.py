@@ -37,7 +37,7 @@ def createModule():
                 symbol = str(random.randint(0, 10)) + symbol
         operand = ""
         if random.randint(0, 10) > 3:
-            operand = str(random.randint(-100000, 100000))
+            operand = str(random.randint(0, 10000000))
         f += symbol + getDelim() + operand + getDelim()
     # uselist
     f += "\n\n"
@@ -62,11 +62,14 @@ def createModule():
             op = random.randint(0, num_in_uselist) if random.randint(0, 10) < 8 else random.randint(0, 10000)
             f += str(op) + getDelim()
         else:
-            f += str(random.randint(0, 10000)) + getDelim()
+            f += str(random.randint(0, 100000)) + getDelim()
     return f
 
 
 myString = createModule()
+myString += createModule()
+myString += createModule()
+myString += createModule()
 f = open("demo.txt", "w")
 f.write(myString)
 f.close()
