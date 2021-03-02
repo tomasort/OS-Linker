@@ -130,6 +130,9 @@ std::string getToken(){
 
 int readInt(){
     std::string token = getToken();
+    if (token.empty() && feof(fp)){
+        return -1;
+    }
     if (token.length() == 0){
         __parseerror(0);
         exit(0);
@@ -209,6 +212,9 @@ void pass1(){
     while(!feof(fp)){
         Module current_module(module_offset, modules.size()); 
         int defcount = readInt();
+        if (defcount < 0 && feof(fp)){
+            break;
+        }
         if (defcount > 16){  // We can't have more than 16 symbols
             __parseerror(4);
             exit(0);
@@ -288,6 +294,9 @@ void pass2(){
     std::cout << "Memory Map" << std::endl;
     while(!feof(fp)){
         int defcount = readInt();
+        if (defcount < 0 && feof(fp)){
+            break;
+        }
         for (int i = 0; i < defcount; i++){
             std::string sym = readSymbol();
             int val = readInt();
