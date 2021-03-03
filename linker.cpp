@@ -6,14 +6,13 @@
 #include <stdio.h>
 
 #define MAX_NUM_VALUE ((1<<30))
-#define LINE_BUFFER 1024
+#define LINE_BUFFER 4024
 
 class Symbol{
 public:
     int definitions;
     int used_in_program;
     int used_in_module;
-    int is_too_large;
     std::string name;
     int value; // relative to the module
 };
@@ -110,26 +109,6 @@ std::string getToken(){
     return current_token;
 }
 
-// std::string getToken(){
-//     // This function returns the current token and keeps track of the next token if there is one
-//     // It returns an empty line when eof is reached. 
-//     static std::string next_token;
-//     std::string current_token;
-//     // To know we have reached EOF before it is too late 
-//     // we read one token ahead 
-//     if(line_number == 0){
-//         current_token = readToken();
-//         next_token = readToken();
-//     }else{
-//         current_token = next_token;
-//         next_token = readToken();
-//     }
-//     if (next_token.empty() && current_token.empty()){
-//         // std::cout << "returning last token" << std::endl;
-//         line_offset = line_length;
-//     }
-//     return current_token;
-// }
 
 int readInt(){
     std::string token = getToken();
@@ -146,7 +125,12 @@ int readInt(){
             exit(0);
         }
     }
-    return stoi(token);
+    long result = stol(token);
+    if (result >= MAX_NUM_VALUE){
+        __parseerror(0);
+        exit(0);
+    }
+    return result;
 }
 
 std::string readSymbol(){
@@ -155,13 +139,14 @@ std::string readSymbol(){
     if (token.length() == 0){
         __parseerror(1);
         exit(0);
-    }else if (token.length() > 16){  // Valid symbols can be up to 16 characters.
-        __parseerror(3);
-        exit(0);
     }
     // Symbols always begin with alpha characters followed by optional alphanumerical characters, i.e.[a-Z][a-Z0-9]*
     if (!isalpha(token[0])){
         __parseerror(1);
+        exit(0);
+    }
+    if (token.length() > 16){  // Valid symbols can be up to 16 characters.
+        __parseerror(3);
         exit(0);
     }
     for(int i = 1; i < token.length(); i++){
@@ -185,8 +170,8 @@ char readIAER(){
         __parseerror(2);
         exit(0);
     }
-    // TODO: Check that addressing_mode is either I, A, E, or R
-    if((addressing_mode != 'I') && (addressing_mode != 'I') && (addressing_mode != 'I') && (addressing_mode != 'I')){
+    // Check that addressing_mode is either I, A, E, or R
+    if((addressing_mode != 'I') && (addressing_mode != 'E') && (addressing_mode != 'A') && (addressing_mode != 'R')){
         __parseerror(2);
         exit(0);
     }
@@ -205,24 +190,14 @@ bool createSymbol(std::string name, int value){
         sym.definitions = 1;
         sym.used_in_module = 0;
         sym.used_in_program = 0;
-        sym.is_too_large = 0;
         symbol_table[name] = sym;
         return true;
     }else{
-        // std::cout << "The symbol already exists" << std::endl;
         symbol_table[name].definitions++;
         return false;
     }
 
 }
-
-// Symbol* getSymbol(std::string symbol_name){
-//     for (int i = 0; i < symbols.size(); i++){
-//         if(symbols[i].name = symbol_name){
-//             return &symbols[i];
-//         }
-//     }
-// }
 
 
 void pass1(){
@@ -263,9 +238,7 @@ void pass1(){
         }
         for (int i = 0; i < instcount; i++){
             char addressing_mode = readIAER();
-            // If addressing_mode is A, check that operand is less than 512
             int operand = readInt();
-            // various checks ... what checks? 
         }
         // Check if the values of symbols in the module are larger than the size of the module
         for (int i = 0; i < current_module.symbols.size(); i ++){
@@ -293,16 +266,6 @@ void pass1(){
             std::cout << "\n";
         }
     }
-    // std::cout << "Symbol Table" << std::endl;
-    // std::map<std::string, Symbol>::iterator it;
-    // for(it = symbol_table.begin(); it != symbol_table.end();it++){
-    //     std::cout << it->first << '=' << it->second.value;
-    //     if (it->second.definitions > 1){
-    //         __printerror(3);
-    //     }else{
-    //         std::cout << "\n";
-    //     }
-    // }
 }
 
 std::string printOperand(int opcode, int operand){
@@ -335,19 +298,19 @@ void pass2(){
             std::string sym = readSymbol();
             int val = readInt();
         }
-        std::vector<std::string> uselist;
+        std::vector<Symbol> uselist;
         int usecount = readInt();
         for (int i = 0; i < usecount; i++){
             std::string sym = readSymbol();
-            uselist.push_back(sym);
-            if (symbol_table.find(sym) == symbol_table.end()){
-                // The symbol in the uselist is not defined in the program
+            if (symbol_table.find(sym) == symbol_table.end()){  // The symbol in the uselist is not defined in the program
                 Symbol s;
                 s.definitions = 0;
                 s.used_in_module = 0;
                 s.used_in_program = 0;
+                s.name = sym;
                 symbol_table[sym] = s;
             }
+            uselist.push_back(symbol_table[sym]);
         }
         int instcount = readInt();
         for (int i = 0; i < instcount; i++){
@@ -380,20 +343,20 @@ void pass2(){
                             std::cout << printOperand(operand/1000, operand%1000);
                             __printerror(2);
                         }else{
-                            if ((symbol_table.find(uselist[operand%1000]) != symbol_table.end()) && (symbol_table[uselist[operand%1000]].definitions > 0)){
-                                std::cout << printOperand(operand/1000, symbol_table[uselist[operand%1000]].value) << std::endl;
+                            if ((symbol_table.find(uselist[operand%1000].name) != symbol_table.end()) && (symbol_table[uselist[operand%1000].name].definitions > 0)){
+                                std::cout << printOperand(operand/1000, uselist[operand%1000].value) << std::endl;
                             }else{
                                 std::cout << printOperand(operand/1000, 0);
-                                std::cout << " Error: " << uselist[operand%1000] << " is not defined; zero used" << std::endl;
+                                std::cout << " Error: " << uselist[operand%1000].name << " is not defined; zero used" << std::endl;
                             }
-                            if (symbol_table.find(uselist[operand%1000]) != symbol_table.end()){
-                                symbol_table[uselist[operand%1000]].used_in_module++;
-                                symbol_table[uselist[operand%1000]].used_in_program++;
+                            if (symbol_table.find(uselist[operand%1000].name) != symbol_table.end()){
+                                symbol_table[uselist[operand%1000].name].used_in_program++;
+                                uselist[operand%1000].used_in_module++;
                             }
                         }
                         break;
                     case 'R':
-                        if ((operand%1000+module_base) > (module_base+instcount)){
+                        if ((operand%1000+module_base) >= (module_base+instcount)){
                             std::cout << printOperand(operand/1000, module_base); // keep only the opcode
                             __printerror(1);
                         }else{
@@ -405,24 +368,17 @@ void pass2(){
             instruction_number++;
         }
         module_base += instcount;
+        //look through the use list symbols and check that they were actually used_in_program in the module
         for (int i = 0; i < usecount; i++){
-            if(symbol_table.find(uselist[i]) != symbol_table.end()){
-                Symbol* sym = &symbol_table[uselist[i]];
+            if(symbol_table.find(uselist[i].name) != symbol_table.end()){
+                Symbol* sym = &uselist[i];
                 if (sym->used_in_module == 0){
-                    std::cout << "Warning: Module " << module_number + 1 << ": " << uselist[i]
+                    std::cout << "Warning: Module " << module_number + 1 << ": " << uselist[i].name
                     <<  " appeared in the uselist but was not actually used\n";
                 }
-            }else{
-                continue;
             }
         }
-        // reset the used_in_module counts for each symbol in the uselist
-        for (int i = 0; i < usecount; i++){
-            if(symbol_table.find(uselist[i]) != symbol_table.end()){
-                Symbol* sym = &symbol_table[uselist[i]];
-                sym->used_in_module = 0;
-            }
-        }
+        
         module_number++;
     }
     std::cout << "\n";
@@ -445,15 +401,12 @@ int main(int argc, char** argv){
     fp = fopen(argv[1], "r");
     // Go through pass 1
     pass1();
-    // if(fclose(fp)){
-    //     printf("Unable to close file\n"); 
-    // }
-    // fp = fopen(argv[1], "r");
     rewind(fp);
     std::cout << "\n";
+
+    // Go through pass 2
     pass2();
     std::cout << "\n";
-    // Go through pass 2
     if(fclose(fp)){ 
         printf("Unable to close file\n"); 
     }
