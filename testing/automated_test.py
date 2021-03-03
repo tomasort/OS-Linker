@@ -267,7 +267,7 @@ MaxNumberOfModules = 20
 
 print 'Starting testing'
 time.sleep(2)
-for i in range(1, 71):
+for i in range(1, 21):
     os.system('./linker lab1samples/input-' + str(i)
               + ' > out_file_mine' + '&& cat out_file_mine')
     os.system('/home/frankeh/Public/linker lab1samples/input-' + str(i)
