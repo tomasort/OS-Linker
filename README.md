@@ -1,4 +1,4 @@
-# NYU os lab 1
+# NYU OS Lab 1
 
 Net-ID: tor213
 Name: Tomas Ortega Rojas
